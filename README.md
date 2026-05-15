@@ -1,33 +1,115 @@
-# Knowledge Core — Budget Calculator v2
+# Knowledge Core Budget Calculator
 
-**Live OpenRouter Pricing · LLM + RAG Cost Estimator for Enterprise Deployments**
+Single-file web calculator for estimating AI system CAPEX and OPEX for PNJ deployment planning.
 
-A standalone, single-file web application that estimates the monthly operational cost (OPEX) and one-time setup cost (CAPEX) of running a Knowledge Core RAG (Retrieval-Augmented Generation) system. Built for **PNJ organizational deployment planning**, with live model pricing fetched from [OpenRouter](https://openrouter.ai).
+The app now has three top-level calculator categories:
 
-- **Live at**: `https://drak905.github.io/kb-budget-calculator/`
-- **Hosting**: GitHub Pages (free, auto-deploys on push)
-- **No backend** — everything runs in the browser as client-side JavaScript
+1. **Knowledge Core** - existing RAG CAPEX + OPEX calculator.
+2. **Contract Review** - new OPEX-only calculator for AI-powered contract review.
+3. **Audio Analysis** - placeholder for a future OPEX calculator.
+
+- **Live site**: `https://drak905.github.io/kb-budget-calculator/`
+- **Hosting**: GitHub Pages
+- **Frontend**: standalone `index.html`
+- **Backend**: none
 
 ---
 
-## What This Calculator Estimates
+## What The App Estimates
 
-A Knowledge Core RAG system has 4 cost phases:
+### Knowledge Core
+
+The Knowledge Core calculator estimates the cost of running a RAG system for organizational knowledge access.
+
+It covers:
 
 | Phase | What It Does | Cost Driver |
 |---|---|---|
-| **1. Document Ingesting** | Parse and embed documents (HR policies, Excel sheets) into a vector DB | Embedding API cost per token |
-| **2. Query Processing** | Users ask questions → semantic search retrieves relevant chunks | Embedding cost for query + chunks |
-| **3. Agent Respond (LLM)** | Retrieved chunks + system prompt → LLM generates answer | LLM input/output token pricing |
-| **4. Storage & Infrastructure** | Vector DB hosting + application server | Per-vector pricing + fixed hosting |
+| Document Ingesting | Parse and embed documents into a vector database | Embedding API cost per token |
+| Query Processing | Embed user questions and retrieve relevant chunks | Query embedding and retrieval context |
+| Agent Respond | Send prompt + retrieved context to an LLM | LLM input/output token pricing |
+| Storage & Infrastructure | Host vector DB and application server | Vector DB pricing + hosting |
 
-The calculator takes slider/adjustable inputs and outputs:
-- **OPEX/month** (USD + VND)
-- **Cost per query** and **cost per user**
-- **CAPEX** (one-time data ingestion + system development)
-- **Phase-by-phase breakdown** with formulas shown
-- **Donut chart** of budget allocation
-- **3-phase deployment roadmap** for PNJ (UAT → HR Production → Public)
+Outputs include:
+
+- Monthly OPEX in USD and VND.
+- Cost per query.
+- Cost per user.
+- One-time CAPEX for initial ingest.
+- Phase-by-phase cost table.
+- Doughnut chart budget breakdown.
+- PNJ deployment timeline presets.
+
+### Contract Review
+
+The Contract Review calculator estimates monthly OPEX for an AI system that reviews contracts against template contracts and review rules.
+
+User stories covered:
+
+- Users upload template contracts.
+- The AI compares a real contract against the template contract.
+- The AI identifies contract section status such as missing, excess, needs change, unsuitable, or appropriate.
+- The AI uses a contract review system prompt to suggest adjustments that maximize company benefit.
+
+Cost components:
+
+| Component | What It Represents | Formula Basis |
+|---|---|---|
+| Infrastructure | VPS cost for daily users | Capped doubling tier model |
+| LLM Input | Template + real contract + review rules | Input tokens per review |
+| LLM Output | Review result and suggestions | Output tokens per review |
+
+Contract Review does not include embedding or vector DB cost in this version.
+
+### Audio Analysis
+
+Audio Analysis is currently a non-functional placeholder. It is reserved for a future OPEX calculator.
+
+---
+
+## Contract Review Formula
+
+### AI Service
+
+The calculator assumes the template contract is included in every review request.
+
+```text
+template_tokens = template_pages * 500
+contract_tokens = contract_pages * 500
+input_tokens_per_review = template_tokens + contract_tokens + system_prompt_tokens
+
+llm_input_cost =
+  contracts_reviewed_per_month
+  * input_tokens_per_review
+  / 1,000,000
+  * selected_model_input_price
+
+llm_output_cost =
+  contracts_reviewed_per_month
+  * output_tokens_per_review
+  / 1,000,000
+  * selected_model_output_price
+```
+
+### Infrastructure
+
+Contract Review VPS cost doubles every 20 daily active users and is capped at `$3,200/month`.
+
+```text
+raw_tier = max(0, ceil(daily_users / 20) - 1)
+tier = min(raw_tier, 4)
+vps_cost = 200 * 2^tier
+```
+
+Tier examples:
+
+| Daily Users | VPS Cost |
+|---:|---:|
+| 1-20 | $200/month |
+| 21-40 | $400/month |
+| 41-60 | $800/month |
+| 61-80 | $1,600/month |
+| 81+ | $3,200/month |
 
 ---
 
@@ -35,141 +117,140 @@ The calculator takes slider/adjustable inputs and outputs:
 
 | Component | Choice |
 |---|---|
-| **Frontend** | Vanilla HTML/CSS/JS (single file, zero dependencies beyond CDN) |
-| **Charts** | [Chart.js 4.4](https://www.chartjs.org/) (CDN — doughnut chart) |
-| **Fonts** | IBM Plex Sans + IBM Plex Mono (Google Fonts CDN) |
-| **Model Pricing** | Live fetch from `https://openrouter.ai/api/v1/models` |
-| **Embedding Models** | 25-model catalog from OpenRouter + self-hosted free option (embeddings endpoint lacks CORS) |
-| **Exchange Rate** | Live fetch from `https://open.er-api.com/v6/latest/USD` with fallback to 26,254 VND/USD |
-| **Hosting** | GitHub Pages (static file serving) |
+| Frontend | Vanilla HTML, CSS, and JavaScript |
+| Charts | Chart.js 4.4 from CDN |
+| Fonts | IBM Plex Sans and IBM Plex Mono from Google Fonts |
+| LLM pricing | Live fetch from `https://openrouter.ai/api/v1/models` |
+| Embedding models | Static 26-model catalog |
+| Exchange rate | Live fetch from `https://open.er-api.com/v6/latest/USD` |
+| Hosting | GitHub Pages |
+
+No package install or build step is required.
 
 ---
 
 ## File Structure
 
-```
+```text
 kb-budget-calculator/
-├── index.html    # The entire application (HTML + CSS + JS, ~1316 lines)
-├── .gitignore    # Empty
-└── README.md     # This file
+├── index.html          # Entire app: HTML, CSS, and JavaScript
+├── README.md           # Project documentation
+└── .gitignore
 ```
+
+Additional local planning and changelog files may exist during development, but the app itself runs from `index.html`.
 
 ---
 
-## How It Works (for LLMs / developers reading this)
+## How It Works
 
-### 1. Model Loading
-On page load, the app calls `https://openrouter.ai/api/v1/models`, filters out free/invalid/inappropriate models (image, audio, router models), and populates a searchable `<select>` dropdown. Each model shows its price per 1M input/output tokens.
+### Model Loading
 
-If the API fails, a hardcoded fallback list of 5 models is used:
-- Claude Sonnet 4.6
-- Gemini 3.1 Pro
-- GPT-5.4 Mini
-- DeepSeek V4 Flash
-- Qwen3.5 Flash
+On page load, the app fetches live model pricing from OpenRouter:
 
-Embedding models are loaded from a static 26-model catalog (the OpenRouter `/api/v1/embeddings/models` endpoint lacks CORS headers). Models are sorted by price ($0.004–$0.20/1M tokens) and include a free self-hosted option. Default: Gemini Embedding 2 Preview.
+```text
+https://openrouter.ai/api/v1/models
+```
 
-### 2. Infrastructure Cost (Nội suy tuyến tính)
-Uses linear interpolation between two known data points:
-- $2,000/month at 100 daily users
-- $5,000/month at 5,000 daily users
+The app filters out invalid, free, image, audio, router, and unsuitable model entries, then populates the shared `LLM Model` selector.
 
-Formula: `$2000 + (users - 100) / (4900) × $3000`
+If OpenRouter fails, the app falls back to a small hardcoded model list.
 
-### 3. Ingest Mode Toggle
-Two modes for document ingestion:
-- **Pages mode**: User specifies document count, pages per doc, and new docs per month. Assumes 500 tokens per page.
-- **Cells mode**: User specifies Excel cell count, max chars per cell (default 32,767), and new cells per month. Tokens estimated as `chars ÷ 2` (Vietnamese text ratio).
+### Shared LLM Selector
 
-Both modes compute `totalChunks = totalTokens ÷ chunkSize`, then `ingestCost = (totalChunks × chunkSize / 1M) × embeddingRate`.
+The LLM selector is shared across:
 
-### 4. Query Processing
-- `totalQueries = users × requestsPerDay × workingDays`
-- `effectiveQueries = totalQueries × (1 − cacheHitRate)`
-- Each query retrieves N chunks × chunkSize tokens of context
-- Query embedding cost: `effectiveQueries × 50 tokens × embeddingRate`
+- Knowledge Core.
+- Contract Review.
 
-### 5. LLM Agent Cost
-- **Input tokens per query**: `systemPrompt + (chunks × chunkSize) + 50 (query wrapper)`
-- **Input cost**: `effectiveQueries × inputTokens × modelInputPrice`
-- **Output cost**: `effectiveQueries × outputTokens × modelOutputPrice`
+Changing the selected LLM recalculates the currently active tab.
 
-### 6. Storage
-- `totalVectors = (docs + newDocs) × chunksPerDoc`
-- Cost: `(totalVectors / 1M) × vectorDBRate + serverHosting`
+### Embedding Models
 
-### 7. Preset Scenarios
-4 general presets + 3 phase-specific presets bound to `<button>` elements:
-- **PNJ tổng (8K)**: 8000 users, 1 req/day, 1455 daily users
-- **HRer only**: 200 users, 2 req/day
-- **Budget min**: 100 users, 1 req/day, cheapest configs
-- **Enterprise**: 5000 users, 500 documents, premium configs
-- **GĐ 1 (UAT)**: 2-week test, 100 users, 5 req/day
-- **GĐ 2 (HR Production)**: 2 months, 100 HRer, 2 req/day
-- **GĐ 3 (Public PNJ)**: ~7 months, 8000 users, 4 req/day
+Embedding models are loaded from a static catalog because the OpenRouter embeddings endpoint does not currently support browser CORS.
 
-### 8. Phase Timeline Panel
-When a GĐ scenario is selected, a dynamic table appears showing all 3 phases side-by-side with editable duration, user count, and requests/day per phase. Changes only affect the timeline calculation (not the main calculator). Total project cost is summed across all phases.
+The embedding selector is only used by Knowledge Core.
 
-### 9. Dark Mode
-Detects `prefers-color-scheme: dark` on load. Toggle button switches between light/dark CSS custom properties.
+### Tab System
+
+The UI uses `data-section` attributes to show and hide calculator sections:
+
+- `data-section="shared"` is always visible in the sidebar.
+- `data-section="knowledge-core"` is visible on the Knowledge Core tab.
+- `data-section="contract-review"` is visible on the Contract Review tab.
+- `data-section="audio-analysis"` is visible on the Audio Analysis tab.
+
+`switchTab(tab)` controls visibility and triggers the correct recalculation function.
+
+### Chart Lifecycle
+
+The app uses two Chart.js doughnut chart instances:
+
+- `donutChart` for Knowledge Core.
+- `donutChartCR` for Contract Review.
+
+Both charts update when costs are recalculated.
 
 ---
 
 ## Key Constants
 
-| Constant | Value | Location |
-|---|---|---|
-| `VND_RATE` | 26,254 (hardcoded fallback, overridden by live fetch) | `fetchExchangeRate()` |
-| `TIER1` | 100 users → $2,000 | Line ~590 |
-| `TIER2` | 5,000 users → $5,000 | Line ~590 |
-| `TOK_PER_PAGE` | 500 | In `calculate()` function |
-| Default model | `anthropic/claude-sonnet-4.6` | Fallback in `fetchModels()` |
+| Constant / Concept | Value |
+|---|---|
+| `VND_RATE` fallback | 26,254 VND/USD |
+| Knowledge Core infra tier 1 | 100 users -> $2,000/month |
+| Knowledge Core infra tier 2 | 5,000 users -> $5,000/month |
+| Tokens per page | 500 |
+| Contract Review base VPS | $200/month |
+| Contract Review VPS cap | $3,200/month |
+| Contract Review default template pages | 10 |
+| Contract Review default contracts/month | 20 |
+| Contract Review default real contract pages | 15 |
+| Contract Review default system prompt | 800 tokens |
+| Contract Review default output | 800 tokens/review |
 
 ---
 
-## How to Update
+## How To Update
 
-1. Edit `index.html` locally
-2. Commit and push to `master`:
-   ```bash
-   git add index.html
-   git commit -m "Describe your change"
-   git push
-   ```
-3. GitHub Pages auto-deploys within ~60 seconds
-4. Verify at `https://drak905.github.io/kb-budget-calculator/`
+1. Edit `index.html`.
+2. Test locally by opening `index.html` in a browser.
+3. Commit and push to `master`:
 
-### Common updates:
-- **Exchange rate**: Change `VND_RATE` at line ~590
-- **Infrastructure tiers**: Change `TIER1`/`TIER2` at lines ~585–586
-- **Embedding model options**: Edit `<select id="sel-embed">` in HTML
-- **Vector DB options**: Edit `<select id="sel-vdb">` in HTML
-- **Preset scenarios**: Modify the `presets` object in `loadScenario()` function
-- **CAPEX development costs**: Edit the hardcoded VND ranges in the CAPEX card HTML
-
----
-
-## Dependencies (CDN — no install needed)
-
-```html
-<!-- Google Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans...">
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+```bash
+git add index.html README.md
+git commit -m "Update calculator"
+git push origin master
 ```
 
-If these CDNs go down, replace with self-hosted copies or alternative CDN URLs.
+4. GitHub Pages should auto-deploy shortly after the push.
+5. Verify the live site:
+
+```text
+https://drak905.github.io/kb-budget-calculator/
+```
+
+---
+
+## Common Maintenance Tasks
+
+- Update OpenRouter fallback models in `fetchModels()`.
+- Update embedding catalog in `fetchEmbedModels()`.
+- Update Knowledge Core infrastructure tiers in `TIER1` and `TIER2`.
+- Update Contract Review VPS logic in `calcInfraContractReview()`.
+- Update Contract Review inputs and formulas in `calculateContractReview()`.
+- Update exchange-rate fallback in `VND_RATE`.
+- Update PNJ scenario presets in `loadScenario()`.
 
 ---
 
 ## Architecture Notes
 
-- **Zero framework**: No React, Vue, or bundler. Pure imperative DOM manipulation via `document.getElementById()`.
-- **Reactive pattern**: Sliders sync bidirectionally with number inputs via `syncPair()`. All inputs trigger `calculate()` on change.
-- **Chart lifecycle**: A single `Chart.js` doughnut instance is created once in `initChart()` and updated via `donutChart.update()` on each recalculation.
-- **State**: All state lives in DOM values. `phaseOverrides` and `phasePresets` are the only JS-side state objects.
-- **API calls**: Two `fetch()` calls on page load — OpenRouter models and open.er-api.com exchange rates. Neither requires authentication.
-- **CORS**: OpenRouter `/api/v1/models` and `open.er-api.com` allow cross-origin requests from any origin. The OpenRouter `/api/v1/embeddings/models` endpoint does NOT support CORS (hence the static embedding model catalog).
+- The app intentionally remains a single static HTML file.
+- There is no framework, bundler, backend, or database.
+- All state is stored in DOM values plus small JavaScript state variables.
+- Slider and number input pairs are synchronized in JavaScript.
+- Knowledge Core uses `calculate()`.
+- Contract Review uses `calculateContractReview()`.
+- Shared LLM changes go through `onModelChange()`.
+- Dark mode updates both chart instances.
