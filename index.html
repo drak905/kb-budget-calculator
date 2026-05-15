@@ -189,7 +189,7 @@ select:focus,.inp:focus{border-color:var(--primary);box-shadow:0 0 0 2px color-m
       <div class="logo-sub">Budget Calculator v2 — Live OpenRouter Pricing</div>
     </div>
   </div>
-  <div class="rate-badge">VCB <strong id="vnd-rate">26.254</strong> VND/USD · 13/05/2026</div>
+  <div class="rate-badge" id="rate-badge"><span id="fx-source">VCB</span> <strong id="vnd-rate">26.254</strong> VND/USD · <span id="fx-date">13/05/2026</span></div>
   <div class="topbar-right">
     <div class="model-status">
       <span class="live-dot"></span>
@@ -284,13 +284,12 @@ select:focus,.inp:focus{border-color:var(--primary);box-shadow:0 0 0 2px color-m
 
     <div class="field">
       <div class="fl"><span>Model Embedding</span></div>
-      <select id="sel-embed">
-        <option value="0.02">text-embedding-3-small ($0.02/1M)</option>
-        <option value="0.13">text-embedding-3-large ($0.13/1M)</option>
-        <option value="0.025">Gemini text-embedding-004 ($0.025/1M)</option>
-        <option value="0.20" selected>Gemini Embedding 2 Preview ($0.20/1M)</option>
-        <option value="0">nomic-embed / self-hosted (free)</option>
-      </select>
+      <div id="embed-loading" class="model-loading">
+        <svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Đang tải embedding models...
+      </div>
+      <select id="sel-embed" style="display:none" onchange="onEmbedModelChange()"></select>
+      <div id="sel-embed-price" style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:4px;text-align:right"></div>
     </div>
   </div>
 
@@ -589,12 +588,13 @@ select:focus,.inp:focus{border-color:var(--primary);box-shadow:0 0 0 2px color-m
 </main>
 
 <script>
-const VND_RATE = 26254;
+let VND_RATE = 26254;
 const TIER1 = {users: 100, cost: 2000};
 const TIER2 = {users: 5000, cost: 5000};
 
 let allModels = [];
 let filteredModels = [];
+let allEmbedModels = [];
 let donutChart = null;
 let phaseOverrides = {};
 let phasePresets = {};
@@ -703,6 +703,106 @@ function updateModelPriceDisplay() {
   document.getElementById('selected-model-name').textContent = m.name;
 }
 
+// Load Embedding Models (static list from OpenRouter — embeddings endpoint lacks CORS)
+function fetchEmbedModels() {
+  allEmbedModels = [
+    { id: 'openai/text-embedding-3-small', name: 'OpenAI: Text Embedding 3 Small', price: 0.02 },
+    { id: 'qwen/qwen3-embedding-4b', name: 'Qwen: Qwen3 Embedding 4B', price: 0.02 },
+    { id: 'perplexity/pplx-embed-v1-0.6b', name: 'Perplexity: Embed V1 0.6B', price: 0.004 },
+    { id: 'thenlper/gte-base', name: 'Thenlper: GTE-Base', price: 0.005 },
+    { id: 'intfloat/e5-base-v2', name: 'Intfloat: E5-Base-v2', price: 0.005 },
+    { id: 'sentence-transformers/all-minilm-l6-v2', name: 'Sentence Transformers: all-MiniLM-L6-v2', price: 0.005 },
+    { id: 'sentence-transformers/all-minilm-l12-v2', name: 'Sentence Transformers: all-MiniLM-L12-v2', price: 0.005 },
+    { id: 'sentence-transformers/all-mpnet-base-v2', name: 'Sentence Transformers: all-mpnet-base-v2', price: 0.005 },
+    { id: 'sentence-transformers/paraphrase-minilm-l6-v2', name: 'Sentence Transformers: paraphrase-MiniLM-L6-v2', price: 0.005 },
+    { id: 'sentence-transformers/multi-qa-mpnet-base-dot-v1', name: 'Sentence Transformers: multi-qa-mpnet-base-dot-v1', price: 0.005 },
+    { id: 'baai/bge-base-en-v1.5', name: 'BAAI: bge-base-en-v1.5', price: 0.005 },
+    { id: 'thenlper/gte-large', name: 'Thenlper: GTE-Large', price: 0.01 },
+    { id: 'intfloat/e5-large-v2', name: 'Intfloat: E5-Large-v2', price: 0.01 },
+    { id: 'intfloat/multilingual-e5-large', name: 'Intfloat: Multilingual-E5-Large', price: 0.01 },
+    { id: 'baai/bge-large-en-v1.5', name: 'BAAI: bge-large-en-v1.5', price: 0.01 },
+    { id: 'baai/bge-m3', name: 'BAAI: bge-m3', price: 0.01 },
+    { id: 'qwen/qwen3-embedding-8b', name: 'Qwen: Qwen3 Embedding 8B', price: 0.01 },
+    { id: 'perplexity/pplx-embed-v1-4b', name: 'Perplexity: Embed V1 4B', price: 0.03 },
+    { id: 'mistralai/mistral-embed-2312', name: 'Mistral: Mistral Embed 2312', price: 0.10 },
+    { id: 'openai/text-embedding-ada-002', name: 'OpenAI: Text Embedding Ada 002', price: 0.10 },
+    { id: 'openai/text-embedding-3-large', name: 'OpenAI: Text Embedding 3 Large', price: 0.13 },
+    { id: 'google/gemini-embedding-001', name: 'Google: Gemini Embedding 001', price: 0.15 },
+    { id: 'mistralai/codestral-embed-2505', name: 'Mistral: Codestral Embed 2505', price: 0.15 },
+    { id: 'google/gemini-embedding-2-preview', name: 'Google: Gemini Embedding 2 Preview', price: 0.20 },
+    { id: 'nvidia/llama-nemotron-embed-vl-1b-v2:free', name: 'NVIDIA: Llama Nemotron Embed VL 1B V2 (free)', price: 0 },
+    { id: '__self_hosted__', name: '🥡 Self-hosted (miễn phí)', price: 0 },
+  ];
+
+  document.getElementById('embed-loading').style.display = 'none';
+  const sel = document.getElementById('sel-embed');
+  sel.style.display = 'block';
+  renderEmbedOptions();
+
+  // Default: select Gemini Embedding 2 Preview
+  const defIdx = allEmbedModels.findIndex(m => m.id === 'google/gemini-embedding-2-preview');
+  sel.selectedIndex = defIdx >= 0 ? defIdx : 0;
+  updateEmbedPriceDisplay();
+  calculate();
+}
+
+async function fetchExchangeRate() {
+  try {
+    const resp = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.rates?.VND) {
+      VND_RATE = data.rates.VND;
+      document.getElementById('vnd-rate').textContent = (VND_RATE / 1000).toFixed(3);
+      document.getElementById('fx-source').textContent = 'Live FX';
+      const updated = data.time_last_update_utc;
+      if (updated) {
+        const d = new Date(updated);
+        document.getElementById('fx-date').textContent =
+          d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+      document.getElementById('rate-badge').title = 'Nguồn: open.er-api.com';
+      calculate();
+    }
+  } catch (e) {
+    console.error('Exchange rate fetch failed, keeping default VND_RATE:', VND_RATE);
+  }
+}
+
+function renderEmbedOptions() {
+  const sel = document.getElementById('sel-embed');
+  const prevId = sel.value;
+  sel.innerHTML = '';
+  allEmbedModels.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    const priceStr = m.price === 0 ? 'Free' : '$' + m.price.toFixed(3).replace(/\.?0+$/, '') + '/1M';
+    opt.textContent = `${m.name} (${priceStr})`;
+    if (m.id === prevId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  updateEmbedPriceDisplay();
+}
+
+function updateEmbedPriceDisplay() {
+  const sel = document.getElementById('sel-embed');
+  const model = allEmbedModels.find(m => m.id === sel.value);
+  if (!model) return;
+  document.getElementById('sel-embed-price').textContent =
+    model.price === 0 ? 'Miễn phí' : `$${model.price.toFixed(4)}/1M tokens`;
+}
+
+function onEmbedModelChange() {
+  updateEmbedPriceDisplay();
+  calculate();
+}
+
+function getEmbedRate() {
+  const sel = document.getElementById('sel-embed');
+  const model = allEmbedModels.find(m => m.id === sel.value);
+  return model ? model.price : 0;
+}
+
 document.getElementById('model-search').addEventListener('input', function() {
   const q = this.value.toLowerCase();
   filteredModels = q ? allModels.filter(m =>
@@ -773,7 +873,7 @@ syncPair('s-cache', 'n-cache');
 
 updateInfraBar(1455);
 
-['sel-embed','sel-chunk','sel-vdb'].forEach(id => {
+['sel-chunk','sel-vdb'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('change', calculate);
 });
@@ -816,7 +916,7 @@ function calculate() {
   const server = +document.getElementById('s-server').value;
   const cacheRate = +document.getElementById('s-cache').value / 100;
   const chunkSize = +document.getElementById('sel-chunk').value;
-  const embedRate = +document.getElementById('sel-embed').value;
+  const embedRate = getEmbedRate();
   const vdbRate = +document.getElementById('sel-vdb').value;
 
   const sel = document.getElementById('sel-llm');
@@ -1032,7 +1132,7 @@ function loadScenario(s) {
       dailyUsers:100, docs:10, pages:6, newDocs:0,
       users:100, rpm:5,      // 5 req/ngày × 10 ngày làm việc
       days:10, chunks:3, sys:400, out:500, chunk:512,
-      embed:'0.13', server:50, cache:0, vdb:'0.08'
+      embedModel:'openai/text-embedding-3-large', server:50, cache:0, vdb:'0.08'
     },
     gd2: {
       _label:'GĐ 2 — Production HR', _duration:2, _durationLabel:'2 tháng',
@@ -1041,7 +1141,7 @@ function loadScenario(s) {
       dailyUsers:100, docs:50, pages:14, newDocs:3,
       users:100, rpm:2,      // 2 req/ngày × 31 ngày
       days:31, chunks:5, sys:400, out:500, chunk:512,
-      embed:'0.13', server:75, cache:15, vdb:'0.08'
+      embedModel:'openai/text-embedding-3-large', server:75, cache:15, vdb:'0.08'
     },
     gd3: {
       _label:'GĐ 3 — Public PNJ', _duration:7, _durationLabel:'~7 tháng (hết 2026)',
@@ -1050,13 +1150,13 @@ function loadScenario(s) {
       dailyUsers:1455, docs:50, pages:14, newDocs:5,
       users:8000, rpm:4,
       days:31, chunks:5, sys:400, out:500, chunk:512,
-      embed:'0.13', server:200, cache:25, vdb:'0.08'
+      embedModel:'openai/text-embedding-3-large', server:200, cache:25, vdb:'0.08'
     },
     // ── Preset tổng quát ──────────────────────────────────────────────────
-    pnj:        { dailyUsers:1455, docs:50, pages:14, newDocs:5, users:8000, rpm:1,  days:31, chunks:5, sys:400, out:500, chunk:512, embed:'0.13', server:100, cache:20, vdb:'0.08' },
-    hrer:       { dailyUsers:100,  docs:50, pages:14, newDocs:5, users:200,  rpm:2,  days:31, chunks:5, sys:400, out:500, chunk:512, embed:'0.13', server:50,  cache:30, vdb:'0.08' },
-    budget:     { dailyUsers:100,  docs:20, pages:6,  newDocs:2, users:100,  rpm:1,  days:31, chunks:3, sys:300, out:350, chunk:256, embed:'0.02', server:10,  cache:40, vdb:'0'    },
-    enterprise: { dailyUsers:5000, docs:500,pages:15, newDocs:50,users:5000, rpm:1,  days:31, chunks:7, sys:600, out:600, chunk:1024,embed:'0.13', server:500, cache:25, vdb:'0.096'},
+    pnj:        { dailyUsers:1455, docs:50, pages:14, newDocs:5, users:8000, rpm:1,  days:31, chunks:5, sys:400, out:500, chunk:512, embedModel:'openai/text-embedding-3-large', server:100, cache:20, vdb:'0.08' },
+    hrer:       { dailyUsers:100,  docs:50, pages:14, newDocs:5, users:200,  rpm:2,  days:31, chunks:5, sys:400, out:500, chunk:512, embedModel:'openai/text-embedding-3-large', server:50,  cache:30, vdb:'0.08' },
+    budget:     { dailyUsers:100,  docs:20, pages:6,  newDocs:2, users:100,  rpm:1,  days:31, chunks:3, sys:300, out:350, chunk:256, embedModel:'openai/text-embedding-3-small', server:10,  cache:40, vdb:'0'    },
+    enterprise: { dailyUsers:5000, docs:500,pages:15, newDocs:50,users:5000, rpm:1,  days:31, chunks:7, sys:600, out:600, chunk:1024,embedModel:'openai/text-embedding-3-large', server:500, cache:25, vdb:'0.096'},
   };
 
   phasePresets = presets;
@@ -1071,7 +1171,7 @@ function loadScenario(s) {
   setR('s-users', p.users); setR('s-rpm', p.rpm); setR('s-days', p.days);
   setR('s-chunks', p.chunks); setR('s-sys', p.sys); setR('s-out', p.out);
   setR('s-server', p.server); setR('s-cache', p.cache);
-  setS('sel-chunk', p.chunk); setS('sel-embed', p.embed); setS('sel-vdb', p.vdb);
+  setS('sel-chunk', p.chunk); setS('sel-embed', p.embedModel); updateEmbedPriceDisplay(); setS('sel-vdb', p.vdb);
 
   // Show/hide phase timeline panel
   const isPhase = ['gd1','gd2','gd3'].includes(s);
@@ -1093,7 +1193,8 @@ function loadScenario(s) {
 }
 
 function calcPresetCost(p, model) {
-  const embedRate = parseFloat(p.embed);
+  const embedModel = allEmbedModels.find(m => m.id === p.embedModel);
+  const embedRate = embedModel ? embedModel.price : 0;
   const vdbRate = parseFloat(p.vdb);
   const chunkSize = parseInt(p.chunk);
   const cacheRate = p.cache / 100;
@@ -1205,6 +1306,8 @@ function resetPhaseOverrides() {
 window.addEventListener('DOMContentLoaded', () => {
   initChart();
   fetchModels();
+  fetchEmbedModels();
+  fetchExchangeRate();
   calculate();
 });
 </script>
