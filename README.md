@@ -39,7 +39,8 @@ The calculator takes slider/adjustable inputs and outputs:
 | **Charts** | [Chart.js 4.4](https://www.chartjs.org/) (CDN — doughnut chart) |
 | **Fonts** | IBM Plex Sans + IBM Plex Mono (Google Fonts CDN) |
 | **Model Pricing** | Live fetch from `https://openrouter.ai/api/v1/models` |
-| **Exchange Rate** | Hardcoded VND/USD rate in `VND_RATE` constant (currently 26,254) |
+| **Embedding Models** | 25-model catalog from OpenRouter + self-hosted free option (embeddings endpoint lacks CORS) |
+| **Exchange Rate** | Live fetch from `https://open.er-api.com/v6/latest/USD` with fallback to 26,254 VND/USD |
 | **Hosting** | GitHub Pages (static file serving) |
 
 ---
@@ -48,7 +49,7 @@ The calculator takes slider/adjustable inputs and outputs:
 
 ```
 kb-budget-calculator/
-├── index.html    # The entire application (HTML + CSS + JS, ~1213 lines)
+├── index.html    # The entire application (HTML + CSS + JS, ~1316 lines)
 ├── .gitignore    # Empty
 └── README.md     # This file
 ```
@@ -66,6 +67,8 @@ If the API fails, a hardcoded fallback list of 5 models is used:
 - GPT-5.4 Mini
 - DeepSeek V4 Flash
 - Qwen3.5 Flash
+
+Embedding models are loaded from a static 26-model catalog (the OpenRouter `/api/v1/embeddings/models` endpoint lacks CORS headers). Models are sorted by price ($0.004–$0.20/1M tokens) and include a free self-hosted option. Default: Gemini Embedding 2 Preview.
 
 ### 2. Infrastructure Cost (Nội suy tuyến tính)
 Uses linear interpolation between two known data points:
@@ -118,9 +121,9 @@ Detects `prefers-color-scheme: dark` on load. Toggle button switches between lig
 
 | Constant | Value | Location |
 |---|---|---|
-| `VND_RATE` | 26,254 | Line ~590 (hardcoded) |
-| `TIER1` | 100 users → $2,000 | Line ~585 |
-| `TIER2` | 5,000 users → $5,000 | Line ~586 |
+| `VND_RATE` | 26,254 (hardcoded fallback, overridden by live fetch) | `fetchExchangeRate()` |
+| `TIER1` | 100 users → $2,000 | Line ~590 |
+| `TIER2` | 5,000 users → $5,000 | Line ~590 |
 | `TOK_PER_PAGE` | 500 | In `calculate()` function |
 | Default model | `anthropic/claude-sonnet-4.6` | Fallback in `fetchModels()` |
 
@@ -168,5 +171,5 @@ If these CDNs go down, replace with self-hosted copies or alternative CDN URLs.
 - **Reactive pattern**: Sliders sync bidirectionally with number inputs via `syncPair()`. All inputs trigger `calculate()` on change.
 - **Chart lifecycle**: A single `Chart.js` doughnut instance is created once in `initChart()` and updated via `donutChart.update()` on each recalculation.
 - **State**: All state lives in DOM values. `phaseOverrides` and `phasePresets` are the only JS-side state objects.
-- **API call**: Single `fetch()` on page load. No authentication required (OpenRouter public endpoint).
-- **CORS**: OpenRouter API allows cross-origin requests from any origin (browser-based fetch works from any hosted domain).
+- **API calls**: Two `fetch()` calls on page load — OpenRouter models and open.er-api.com exchange rates. Neither requires authentication.
+- **CORS**: OpenRouter `/api/v1/models` and `open.er-api.com` allow cross-origin requests from any origin. The OpenRouter `/api/v1/embeddings/models` endpoint does NOT support CORS (hence the static embedding model catalog).
